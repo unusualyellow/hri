@@ -1,0 +1,16 @@
+image: ros:humble
+
+cache:
+  paths:
+    - ccache/
+
+before_script:
+  - apt update -qq
+  - apt install -y python3-pip
+  - pip install officebots websockets==13.1
+
+colcon tools:
+  tags: [build]
+  stage: build
+  script:
+    - colcon build
