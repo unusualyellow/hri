@@ -24,7 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-		'spin_around = hri_robot.robot_spin_around:main'
+		'spin_around = hri_robot.robot_spin_around:main',
+		'follow_human = hri_robot.human_follower:main',
         ],
     },
 )
