@@ -30,14 +30,16 @@ class HumanFollower(Node):
         robot_frame = 'base_link'
 
         try:
-            # Calculam vectorul de la Robot -> Om
-            t_seek = self.tf_buffer.lookup_transform(
+            # Incercam sa aflam unde e omul fata de robot(Calculam vectorul de la Robot -> Om)
+            t = self.tf_buffer.lookup_transform(
                 robot_frame,
                 human_frame,
                 rclpy.time.Time())
             
-            x_h = t_seek.transform.translation.x
-            y_h = t_seek.transform.translation.y
+	    #Daca ajungem aici, OMUL ESTE VIZIBIL
+	    #Extragem coordonatele 
+            x_h = t.transform.translation.x
+            y_h = t.transform.translation.y
             
             # Rotim robotul spre om
             msg_vel = Twist()
