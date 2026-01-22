@@ -12,7 +12,7 @@ class HumanFollower(Node):
         
         # Publisher pentru miscare
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
-        
+
         # Setup pentru TF (Sistemul care detecteaza pozitia)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -26,41 +26,52 @@ class HumanFollower(Node):
         msg = Twist()
         
         # Numele frame-urilor
-        # officebot_base_link = robotul
-        # human/body_0/base_link = omul 
-        from_frame_rel = 'person_ioana' 
-        to_frame_rel = 'base_link'
+        human_frame = 'person_ioana' 
+        robot_frame = 'base_link'
 
         try:
-            # 1. Incercam sa aflam unde e omul fata de robot
-            t = self.tf_buffer.lookup_transform(
-                to_frame_rel,
-                from_frame_rel,
+            # Calculam vectorul de la Robot -> Om
+            t_seek = self.tf_buffer.lookup_transform(
+                robot_frame,
+                human_frame,
                 rclpy.time.Time())
             
-            # Daca ajungem aici, OMUL ESTE VIZIBIL
-            # Extragem coordonatele
-            x = t.transform.translation.x
-            y = t.transform.translation.y
+            x_h = t_seek.transform.translation.x
+            y_h = t_seek.transform.translation.y
             
-            # Calculam unghiul folosind atan2
-            angle_to_turn = math.atan2(y, x)
-            
-            # Regula de 3 simpla (Proportional Controller):
-            # Daca unghiul e mare -> rotim repede. Daca e mic -> rotim incet.
-            msg.angular.z = 1.0 * angle_to_turn 
-            msg.linear.x = 0.0 # Stam pe loc, doar ne rotim
-            
-            self.get_logger().info(f'Om detectat la unghiul: {angle_to_turn:.2f}')
+            # Rotim robotul spre om
+            msg_vel = Twist()
+            angle_to_turn = math.atan2(y_h, x_h)
+            msg_vel.angular.z = 1.0 * angle_to_turn
+            self.publisher_.publish(msg_vel)
 
+           
+            # Calculam vectorul invers: Om -> Robot
+            # Asta ne spune unde e robotul "din punctul de vedere al omului"
+            t_engage = self.tf_buffer.lookup_transform(
+                human_frame,
+                robot_frame,
+                rclpy.time.Time())
+            
+            rx = t_engage.transform.translation.x # Distanta in fata omului
+            ry = t_engage.transform.translation.y # Distanta laterala (stanga/dreapta)
+
+                        
+            # Conditiile pentru Engagement:
+            # 1. rx > 0: Robotul e in FAȚA ta (nu la spate)
+            # 2. rx < 3.0: Robotul e la mai putin de 3 metri
+            # 3. abs(ry) < 0.5: Robotul e centrat pe directia privirii tale
+            if rx > 0.0 and rx < 3.0 and abs(ry) < 0.5:
+                self.get_logger().info("Engaged: Hello Ioana!")
+            else:
+                self.get_logger().info("Not Engaged")
+            
         except TransformException as ex:
-            # 2. Daca omul NU e vizibil (sau apare o eroare de transformare)
-            # Robotul intra in modul SEEK (Cauta) -> se roteste constant
-            msg.angular.z = 0.5
-            msg.linear.x = 0.0
-            self.get_logger().info('Caut omul...')
-
-        self.publisher_.publish(msg)
+            # Daca nu te vede, te cauta
+            msg_vel = Twist()
+            msg_vel.angular.z = 0.5
+            self.publisher_.publish(msg_vel)
+            self.get_logger().info('Caut_omul...')
 
 def main(args=None):
     rclpy.init(args=args)
